@@ -247,6 +247,50 @@
     if(use)addTemplateTask(use.dataset.templateUse);
     if(del){const id=Number(del.dataset.templateDelete);const t=templates.find(x=>Number(x.id)===id);if(t&&confirm(`テンプレート「${t.taskName || t.name}」を削除しますか？`)){templates=templates.filter(x=>Number(x.id)!==id);saveTemplates();renderTemplates();notify("テンプレートを削除しました");}}
   }
+  function downloadBlob(content, filename, type) {
+    const blob = new Blob([content], {type});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url; link.download = filename; document.body.appendChild(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  function exportBackup() {
+    const payload = { app: "Taskly", formatVersion: 1, exportedAt: new Date().toISOString(), tasks, templates };
+    const stamp = isoDate(today());
+    downloadBlob(JSON.stringify(payload, null, 2), `taskly-backup-${stamp}.json`, "application/json;charset=utf-8");
+    notify("バックアップを保存しました。大切に保管してください。");
+  }
+  function importBackupFile(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onerror = () => notify("ファイルを読み込めませんでした。別のファイルを選んでください。");
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(String(reader.result || ""));
+        if (!data || data.app !== "Taskly" || !Array.isArray(data.tasks) || !Array.isArray(data.templates)) {
+          throw new Error("Tasklyのバックアップ形式ではありません。");
+        }
+        const validTasks = data.tasks.every(t => t && (typeof t.id === "number" || typeof t.id === "string") && typeof t.name === "string" && typeof t.deadline === "string" && Number.isFinite(Number(t.requiredHours)));
+        const validTemplates = data.templates.every(t => t && (typeof t.id === "number" || typeof t.id === "string") && typeof (t.taskName || t.name) === "string" && Number.isFinite(Number(t.requiredHours)));
+        if (!validTasks || !validTemplates) throw new Error("バックアップ内の課題データに不備があります。");
+        if (!confirm(`バックアップ内の課題 ${data.tasks.length}件、テンプレート ${data.templates.length}件を読み込みます。
+現在のデータは置き換わります。先に現在のバックアップを保存しましたか？`)) return;
+        tasks = data.tasks.map(t => ({
+          ...t, id: t.id, name: String(t.name), deadline: String(t.deadline),
+          requiredHours: Number(t.requiredHours), subject: String(t.subject || ""), notes: String(t.notes || ""),
+          manualPriority: t.manualPriority || "auto", completed: Boolean(t.completed),
+          loggedHours: Math.max(0, Number(t.loggedHours) || 0), createdAt: t.createdAt || new Date().toISOString()
+        }));
+        templates = data.templates.map(t => ({...t, id: t.id, name: String(t.taskName || t.name), taskName: String(t.taskName || t.name), subject: String(t.subject || ""), requiredHours: Number(t.requiredHours)}));
+        nextId = Math.max(0, ...tasks.map(t => Number(t.id) || 0)) + 1;
+        saveTasks(); saveTemplates(); renderAll(); renderTemplates(); renderTaskTemplateOptions();
+        notify("バックアップを読み込みました。");
+      } catch (error) {
+        notify(error instanceof SyntaxError ? "JSONファイルを読み取れません。Tasklyのバックアップを選んでください。" : (error.message || "バックアップを読み込めませんでした。"));
+      } finally { $("importBackupFile").value = ""; }
+    };
+    reader.readAsText(file);
+  }
   function setTimerMinutes() { if(timerRunning)return; timerRemaining=Number($("timerMinutes").value)*60; timerSessionSeconds=0; updateTimerDisplay(); }
   function updateTimerDisplay() { const m=Math.floor(timerRemaining/60),s=timerRemaining%60;$("timerDisplay").textContent=`${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`; }
   function stopTimer() { clearInterval(timerInterval);timerInterval=null;timerRunning=false;$("timerStart").textContent="開始"; }
@@ -286,6 +330,9 @@
   $("prevMonth").addEventListener("click",()=>{calendarMonth=new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()-1,1);renderCalendar();});
   $("nextMonth").addEventListener("click",()=>{calendarMonth=new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()+1,1);renderCalendar();});
   $("fullCalendar").addEventListener("click",e=>{const cell=e.target.closest("[data-calendar-date]");if(!cell)return;selectedDate=cell.dataset.calendarDate;const d=dateFrom(selectedDate);calendarMonth=new Date(d.getFullYear(),d.getMonth(),1);renderCalendar();});
+  $("exportBackupButton").addEventListener("click", exportBackup);
+  $("importBackupButton").addEventListener("click", () => $("importBackupFile").click());
+  $("importBackupFile").addEventListener("change", e => importBackupFile(e.target.files && e.target.files[0]));
   $("timerStart").addEventListener("click",toggleTimer);
   $("timerReset").addEventListener("click",()=>{stopTimer();setTimerMinutes();$("timerStatus").textContent="タイマーをリセットしました。";});
   $("timerMinutes").addEventListener("change",setTimerMinutes);
