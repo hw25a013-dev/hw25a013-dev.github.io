@@ -137,6 +137,20 @@
         </div>
       </section>
 
+      <section class="panel data-panel" aria-labelledby="dataPanelTitle">
+        <div class="panel-heading"><div><h2 id="dataPanelTitle">データ管理・バックアップ</h2><p>課題データをファイルに保存して、万一に備えられます</p></div><span class="data-badge">大切なデータを保護</span></div>
+        <div class="data-tools">
+          <div class="data-tool-copy"><strong>バックアップを保存</strong><span>課題・テンプレート・作業時間をJSONファイルにまとめます。</span></div>
+          <button type="button" class="primary-button" id="exportBackupButton">↓ バックアップを保存</button>
+        </div>
+        <div class="data-tools">
+          <div class="data-tool-copy"><strong>バックアップを読み込む</strong><span>保存済みのTasklyバックアップからデータを復元します。現在のデータは置き換わります。</span></div>
+          <button type="button" class="secondary-button" id="importBackupButton">↑ バックアップを読み込む</button>
+          <input id="importBackupFile" type="file" accept=".json,application/json" hidden>
+        </div>
+        <p class="data-warning"><strong>保存について：</strong>データはこのブラウザ内に保存されます。スマホとパソコンのデータは自動同期されないため、端末を移す場合はバックアップを利用してください。</p>
+      </section>
+
       <section class="panel timer-panel">
         <div class="timer-info"><span class="timer-icon">◷</span><div><h2>集中タイマー</h2><p>短い時間から集中して取り組もう</p></div></div>
         <div class="timer-controls">
