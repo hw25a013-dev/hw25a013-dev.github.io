@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Taskly | 学生向けタスク管理</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="#" aria-label="Taskly ホーム">
+        <span class="brand-mark">T</span><span>taskly</span>
+      </a>
+      <div class="sidebar-label">WORKSPACE</div>
+      <nav class="nav-menu" aria-label="メインメニュー">
+        <button class="nav-item active" data-view="dashboard"><span>▦</span> ダッシュボード</button>
+        <button class="nav-item" data-view="tasks"><span>☷</span> すべての課題</button>
+        <button class="nav-item" data-view="calendar"><span>▦</span> カレンダー</button>
+        <button class="nav-item" data-view="templates"><span>◇</span> 課題テンプレート</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="sidebar-label">今日のひとこと</div>
+        <div class="focus-note">
+          <span class="note-icon">✦</span>
+          <p>小さな一歩を積み重ねよう。</p>
+          <span class="note-sub">今日できることから始めよう</span>
+        </div>
+        <div class="storage-note"><span class="status-dot"></span> このブラウザに保存中</div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow" id="todayLabel">YOUR STUDY SPACE</p>
+          <h1 id="pageTitle">おかえりなさい 👋</h1>
+          <p class="subtitle" id="pageSubtitle">今日の課題を確認して、少しずつ進めましょう。</p>
+        </div>
+        <button class="primary-button" id="newTaskTopButton">＋ 課題を追加</button>
+      </header>
+
+      <section class="view-panel active" id="dashboardView">
+        <div class="stats-grid">
+          <article class="stat-card stat-purple">
+            <div class="stat-top"><span>登録した課題</span><span class="stat-icon">▤</span></div>
+            <div class="stat-number" id="totalCount">0</div>
+            <div class="stat-foot">これまでに登録した課題</div>
+          </article>
+          <article class="stat-card stat-red">
+            <div class="stat-top"><span>未完了の課題</span><span class="stat-icon">◷</span></div>
+            <div class="stat-number" id="pendingCount">0</div>
+            <div class="stat-foot" id="urgentFoot">締め切りをチェック</div>
+          </article>
+          <article class="stat-card stat-green">
+            <div class="stat-top"><span>完了した課題</span><span class="stat-icon">✓</span></div>
+            <div class="stat-number" id="completedCount">0</div>
+            <div class="stat-foot">よく頑張っています！</div>
+          </article>
+          <article class="stat-card stat-blue">
+            <div class="stat-top"><span>完了率</span><span class="stat-icon">↗</span></div>
+            <div class="stat-number"><span id="completionRate">0</span><small>%</small></div>
+            <div class="progress-track"><div id="completionBar" class="progress-fill"></div></div>
+          </article>
+        </div>
+
+        <div class="dashboard-grid">
+          <section class="panel task-panel">
+            <div class="panel-heading">
+              <div><h2>優先して取り組む課題</h2><p>締め切りが近い課題から表示します</p></div>
+              <button class="text-button" data-go="tasks">すべて見る →</button>
+            </div>
+            <div id="dashboardTaskList" class="task-list"></div>
+            <div class="empty-state" id="dashboardEmpty"><span>✧</span><strong>課題はまだありません</strong><p>最初の課題を登録してみましょう。</p></div>
+          </section>
+          <section class="panel progress-panel">
+            <div class="panel-heading"><div><h2>今の進捗</h2><p>課題の完了状況</p></div></div>
+            <div class="donut-wrap"><div class="donut" id="progressDonut"><div class="donut-center"><strong id="donutRate">0%</strong><span>完了</span></div></div></div>
+            <div class="legend-row"><span><i class="legend-dot done-dot"></i>完了</span><strong id="legendDone">0</strong></div>
+            <div class="legend-row"><span><i class="legend-dot todo-dot"></i>未完了</span><strong id="legendTodo">0</strong></div>
+            <div class="mini-chart-title">科目別の課題数</div>
+            <div id="subjectChart" class="bar-chart"></div>
+          </section>
+        </div>
+
+        <section class="panel calendar-preview">
+          <div class="panel-heading">
+            <div><h2>今月の締め切り</h2><p>直近の予定をカレンダーで確認</p></div>
+            <button class="text-button" data-go="calendar">カレンダーを開く →</button>
+          </div>
+          <div id="miniCalendar" class="mini-calendar"></div>
+        </section>
+      </section>
+
+      <section class="view-panel" id="tasksView">
+        <section class="panel">
+          <div class="panel-heading"><div><h2>すべての課題</h2><p>検索・絞り込み・編集ができます</p></div><button class="primary-button" id="newTaskListButton">＋ 課題を追加</button></div>
+          <div class="task-list-tools"><p>完了した課題は個別に削除するか、まとめて整理できます。</p><button class="danger-button" id="clearCompletedButton" type="button">✓ 完了済みを一括削除</button></div>
+          <div class="filter-row">
+            <label class="search-box"><span>⌕</span><input id="searchInput" type="search" placeholder="課題名・科目で検索"></label>
+            <select id="statusFilter" aria-label="状態で絞り込み"><option value="all">すべての状態</option><option value="pending">未完了</option><option value="completed">完了</option><option value="overdue">期限超過</option></select>
+            <select id="subjectFilter" aria-label="科目で絞り込み"><option value="all">すべての科目</option></select>
+            <select id="sortFilter" aria-label="並び替え"><option value="deadline">締め切りが近い順</option><option value="priority">優先度順</option><option value="name">課題名順</option></select>
+          </div>
+          <div id="allTaskList" class="task-list"></div>
+          <div class="empty-state" id="allTasksEmpty"><span>⌕</span><strong>該当する課題がありません</strong><p>検索条件を変更するか、新しい課題を登録してください。</p></div>
+        </section>
+      </section>
+
+      <section class="view-panel" id="calendarView">
+        <section class="panel">
+          <div class="panel-heading calendar-heading"><div><h2>課題カレンダー</h2><p>締め切り日を選ぶと、その日の課題を確認できます</p></div><div class="month-controls"><button id="prevMonth" aria-label="前の月">‹</button><strong id="calendarMonthLabel"></strong><button id="nextMonth" aria-label="次の月">›</button></div></div>
+          <div class="calendar-layout"><div id="fullCalendar" class="full-calendar"></div><aside class="day-detail"><h3 id="selectedDateLabel">日付を選択</h3><div id="selectedDayTasks"></div></aside></div>
+          <div class="calendar-help"><span><i class="calendar-dot overdue-dot"></i>期限超過</span><span><i class="calendar-dot pending-dot"></i>未完了</span><span><i class="calendar-dot completed-dot"></i>完了</span><span class="calendar-instruction">日付を選択すると、右側にその日の課題が表示されます。</span></div>
+        </section>
+      </section>
+
+      <section class="view-panel" id="templatesView">
+        <div class="templates-layout">
+          <section class="panel">
+            <div class="panel-heading"><div><h2>課題テンプレート</h2><p>よく使う課題の入力内容を保存できます</p></div></div>
+            <form id="templateForm" class="stack-form">
+              <label>課題名（テンプレート名）<input id="templateTaskName" required maxlength="120" placeholder="例：プログラミング課題を提出する"></label>
+              <p class="field-hint">ここに入力した課題名が、そのままテンプレート一覧と選択メニューに表示されます。</p>
+              <div class="form-row">
+                <label>科目<input id="templateSubject" maxlength="60" placeholder="例：プログラミング"></label>
+                <label>必要な作業時間（時間）<input id="templateHours" type="number" min="0.25" step="0.25" required value="2"></label>
+              </div>
+              <button class="primary-button" type="submit">＋ テンプレートを保存</button>
+            </form>
+          </section>
+          <section class="panel">
+            <div class="panel-heading"><div><h2>保存済みテンプレート</h2><p>選択して課題登録に利用できます</p></div><button type="button" class="danger-button" id="clearTemplatesButton">一括削除</button></div>
+            <div id="templateList" class="template-list"></div>
+            <div class="empty-state" id="templateEmpty"><span>◇</span><strong>テンプレートはありません</strong><p>左のフォームから追加できます。</p></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="panel timer-panel">
+        <div class="timer-info"><span class="timer-icon">◷</span><div><h2>集中タイマー</h2><p>短い時間から集中して取り組もう</p></div></div>
+        <div class="timer-controls">
+          <select id="timerTaskSelect" aria-label="時間を記録する課題"><option value="">課題を選択（任意）</option></select>
+          <div class="timer-display" id="timerDisplay">25:00</div>
+          <button class="primary-button" id="timerStart">開始</button>
+          <button class="secondary-button" id="timerReset">リセット</button>
+          <label class="timer-mode">時間
+            <select id="timerMinutes"><option value="25">25分</option><option value="15">15分</option><option value="45">45分</option><option value="60">60分</option></select>
+          </label>
+        </div>
+        <p class="timer-status" id="timerStatus">開始すると、選択した課題の作業時間を記録します。</p>
+      </section>
+      <footer class="app-footer">Taskly <span>·</span> あなたの学びを、もっとスマートに。</footer>
+    </main>
+  </div>
+
+  <dialog id="taskDialog" class="task-dialog">
+    <form id="taskForm" method="dialog">
+      <div class="dialog-heading"><div><p class="eyebrow">TASK DETAILS</p><h2 id="taskDialogTitle">課題を追加</h2></div><button type="button" class="icon-button" id="closeTaskDialog" aria-label="閉じる">×</button></div>
+      <input type="hidden" id="editingTaskId">
+      <div id="taskFormError" class="form-error" role="alert" aria-live="assertive" hidden></div>
+      <label class="template-picker-label">テンプレートから入力（任意）<select id="taskTemplateSelect"><option value="">テンプレートを選択すると自動入力</option></select><small class="field-hint">選ぶと課題名・科目・作業時間が入力されます。必要に応じて編集できます。</small></label>
+      <label>課題名<input id="taskName" required maxlength="120" placeholder="例：レポートを提出する"></label>
+      <div class="form-row">
+        <label>科目・カテゴリ<input id="taskSubject" maxlength="60" placeholder="例：情報処理"></label>
+        <label>締め切り<input id="deadline" type="date" required></label>
+      </div>
+      <div class="form-row">
+        <label>必要な作業時間（時間）<input id="requiredHours" type="number" min="0.25" step="0.25" required placeholder="例：3"></label>
+        <label>優先度<select id="manualPriority"><option value="auto">自動判定</option><option value="high">高</option><option value="medium">中</option><option value="low">低</option></select></label>
+      </div>
+      <label>メモ（任意）<textarea id="taskNotes" rows="3" maxlength="500" placeholder="課題の補足や提出方法など"></textarea></label>
+      <div class="dialog-actions"><button type="button" class="secondary-button" id="cancelTaskDialog">キャンセル</button><button type="submit" class="primary-button">保存する</button></div>
+    </form>
+  </dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="script.js"></script>
+</body>
+</html>
