@@ -1,7 +1,7 @@
 (() => {
   "use strict";
   const $ = (id) => document.getElementById(id);
-  const STORAGE = { tasks: "tasklyDashboardTasksV1", templates: "tasklyDashboardTemplatesV1" };
+  const STORAGE = { tasks: "tasklyDashboardTasksV2", templates: "tasklyDashboardTemplatesV2", heroXp: "tasklyRpgHeroXpV2", history: "tasklyLifetimeHistoryV2" };
   const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
   const today = () => { const d = new Date(); d.setHours(0,0,0,0); return d; };
   const dateFrom = (value) => { if (!value) return null; const d = new Date(value + "T00:00:00"); return Number.isNaN(d.getTime()) ? null : d; };
@@ -10,19 +10,19 @@
   const safeParse = (key, fallback) => { try { const v = JSON.parse(localStorage.getItem(key)); return v ?? fallback; } catch { return fallback; } };
   let tasks = safeParse(STORAGE.tasks, null);
   let templates = safeParse(STORAGE.templates, []);
-  // Migrate tasks from the previous version's LocalStorage key when possible.
-  if (!Array.isArray(tasks)) {
-    const legacyTasks = safeParse("taskManagementAppTasks", []);
-    tasks = Array.isArray(legacyTasks) ? legacyTasks.map(t => ({
-      ...t,
-      subject: t.subject || "",
-      notes: t.notes || "",
-      manualPriority: t.manualPriority || "auto",
-      loggedHours: Number(t.loggedHours) || 0,
-      completed: Boolean(t.completed)
-    })) : [];
-  }
+  let heroXp = Math.max(0, Number(safeParse(STORAGE.heroXp, 0)) || 0);
+  if (!Array.isArray(tasks)) tasks = [];
   if (!Array.isArray(templates)) templates = [];
+  const initialHistory = safeParse(STORAGE.history, null);
+  let history = initialHistory && typeof initialHistory === "object" ? {
+    firstUsedAt: initialHistory.firstUsedAt || new Date().toISOString(),
+    totalStudyHours: Math.max(0, Number(initialHistory.totalStudyHours) || 0),
+    totalCompleted: Math.max(0, Number(initialHistory.totalCompleted) || 0),
+    studySessions: Math.max(0, Number(initialHistory.studySessions) || 0),
+    workLogCount: Math.max(0, Number(initialHistory.workLogCount) || 0),
+    studyDays: Array.isArray(initialHistory.studyDays) ? [...new Set(initialHistory.studyDays.filter(x => /^\d{4}-\d{2}-\d{2}$/.test(x)))].sort() : [],
+    achievementDates: initialHistory.achievementDates && typeof initialHistory.achievementDates === "object" ? initialHistory.achievementDates : {}
+  } : { firstUsedAt: new Date().toISOString(), totalStudyHours: 0, totalCompleted: 0, studySessions: 0, workLogCount: 0, studyDays: [], achievementDates: {} };
   let nextId = Math.max(0, ...tasks.map(t => Number(t.id)||0)) + 1;
   let currentView = "dashboard";
   let calendarMonth = new Date(today().getFullYear(), today().getMonth(), 1);
@@ -36,6 +36,19 @@
 
   const saveTasks = () => localStorage.setItem(STORAGE.tasks, JSON.stringify(tasks));
   const saveTemplates = () => localStorage.setItem(STORAGE.templates, JSON.stringify(templates));
+  const saveHeroXp = () => localStorage.setItem(STORAGE.heroXp, JSON.stringify(heroXp));
+  const saveHistory = () => localStorage.setItem(STORAGE.history, JSON.stringify(history));
+  // Estimated cumulative work time is the sum of requiredHours on currently registered tasks. Manual logged time remains a separate per-task record.
+  const cumulativeRequiredHours = () => tasks.reduce((sum, task) => sum + Math.max(0, Number(task.requiredHours) || 0), 0);
+  function reconcileStudyHistory() {
+    history.totalStudyHours = Math.max(0, Number(history.totalStudyHours) || 0);
+    history.totalCompleted = Math.max(0, Number(history.totalCompleted) || 0);
+    history.studySessions = Math.max(0, Number(history.studySessions) || 0);
+    if (!Array.isArray(history.studyDays)) history.studyDays = [];
+    if (!history.achievementDates || typeof history.achievementDates !== "object") history.achievementDates = {};
+  }
+  const fullDateLabel = (value) => { const d = value ? new Date(value) : null; return d && !Number.isNaN(d.getTime()) ? new Intl.DateTimeFormat("ja-JP", {year:"numeric",month:"long",day:"numeric"}).format(d) : "記録なし"; };
+  const durationLabel = (hours) => { const minutes = Math.round((Number(hours)||0)*60); return `${Math.floor(minutes/60)}時間${String(minutes%60).padStart(2,"0")}分`; };
   const escapeHTML = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
   const daysLeft = (deadline) => { const d = dateFrom(deadline); return d ? Math.round((d - today()) / 86400000) : Infinity; };
   const taskIsOverdue = (t) => !t.completed && daysLeft(t.deadline) < 0;
@@ -52,9 +65,9 @@
   const fmtHours = (n) => `${(Number(n)||0).toLocaleString("ja-JP",{maximumFractionDigits:2})}時間`;
   const remainingHours = (t) => Math.max(0, (Number(t.requiredHours)||0) - (Number(t.loggedHours)||0));
   const perDay = (t) => { const days = daysLeft(t.deadline); return remainingHours(t) / Math.max(1, Number.isFinite(days) ? days + 1 : 1); };
-  function notify(message) {
+  function notify(message, duration=2600) {
     const toast = $("toast"); toast.textContent = message; toast.classList.add("show");
-    clearTimeout(toastTimeout); toastTimeout = setTimeout(() => toast.classList.remove("show"), 2600);
+    clearTimeout(toastTimeout); toastTimeout = setTimeout(() => toast.classList.remove("show"), duration);
   }
   function showView(view) {
     currentView = view;
@@ -65,7 +78,8 @@
       dashboard:["おかえりなさい 👋","今日の課題を確認して、少しずつ進めましょう。"],
       tasks:["すべての課題","課題を整理して、次の一歩を決めましょう。"],
       calendar:["課題カレンダー","締め切りを見通して、余裕をもって進めましょう。"],
-      templates:["課題テンプレート","よく使う課題を登録して、入力の手間を減らしましょう。"]
+      templates:["課題テンプレート","よく使う課題を登録して、入力の手間を減らしましょう。"],
+      achievements:["実績・学習記録","これまでの達成実績と、積み重ねてきた学習の記録を振り返りましょう。"]
     };
     $("pageTitle").textContent = titles[view][0]; $("pageSubtitle").textContent = titles[view][1];
     if (view === "calendar") renderCalendar();
@@ -96,7 +110,7 @@
       </div>
       ${t.notes ? `<div class="task-meta">メモ：${escapeHTML(t.notes)}</div>` : ""}
       <div class="task-meta"><span class="${urgencyClass}">◷ ${deadlineText}</span><span>◌ 残り ${fmtHours(remainingHours(t))}</span><span>✓ 実績 ${fmtHours(t.loggedHours || 0)}</span></div>
-      <div class="task-card-bottom"><span class="task-time">1日あたりの目安 <strong>${fmtHours(perDay(t))}</strong></span>${t.completed ? '<span class="status-chip completed">完了済み</span>' : ""}</div>
+      <div class="task-card-bottom"><span class="task-time">1日あたりの目安 <strong>${fmtHours(perDay(t))}</strong></span>${t.completed ? '<span class="status-chip completed">完了済み</span>' : ""}<button class="work-log-button" data-action="log-time" data-id="${t.id}" type="button">＋ 作業時間を記録</button></div>
     </article>`;
   }
   function setEmpty(id, visible) { $(id).classList.toggle("show", visible); }
@@ -117,8 +131,130 @@
     setEmpty("allTasksEmpty", filtered.length === 0);
     updateSelectOptions();
   }
+  function renderHero() {
+    const XP_PER_LEVEL = 80;
+    const level = Math.floor(heroXp / XP_PER_LEVEL) + 1;
+    const inLevel = heroXp % XP_PER_LEVEL;
+    const completed = tasks.filter(t => t.completed).length;
+    const overdue = tasks.filter(taskIsOverdue).length;
+    const ranks = [
+      {name:"駆け出しの冒険者", flavor:"最初の一歩が、伝説の始まり。", emblem:"⚔"},
+      {name:"見習いクエスター", flavor:"小さな達成が、自信へと変わっていく。", emblem:"🛡"},
+      {name:"森のレンジャー", flavor:"観察と工夫で、道を切り開こう。", emblem:"🏹"},
+      {name:"鋼鉄の守護騎士", flavor:"揺るがぬ意志が仲間を守る。", emblem:"🛡"},
+      {name:"魔導学院の賢者", flavor:"知識を磨き、新たな術を得た。", emblem:"✦"},
+      {name:"王国のエリート", flavor:"数々の試練を越え、信頼を得た。", emblem:"♛"},
+      {name:"竜狩りの英雄", flavor:"強敵にもひるまず立ち向かう。", emblem:"🐉"},
+      {name:"聖剣の継承者", flavor:"伝説の武具にふさわしい実力。", emblem:"⚔"},
+      {name:"星詠みの覇者", flavor:"星々の導きさえ力に変える。", emblem:"🌟"},
+      {name:"永遠の伝説", flavor:"努力の軌跡そのものが伝説となった。", emblem:"👑"}
+    ];
+    const rankIndex = Math.min(ranks.length - 1, Math.floor((level - 1) / 2));
+    const rank = ranks[rankIndex];
+    const panel = document.querySelector(".hero-panel");
+    const character = document.querySelector(".hero-character");
+    if(character){ character.classList.remove(...Array.from({length:10},(_,i)=>`gear-${i}`)); character.classList.add(`gear-${rankIndex}`); character.setAttribute("aria-label", `${rank.name}の装備`); }
+    if (panel) {
+      panel.classList.remove(...Array.from({length:10}, (_,i)=>`rank-${i}`));
+      panel.classList.add(`rank-${rankIndex}`);
+    }
+    $("heroRank").textContent = rank.name;
+    $("heroLevel").textContent = level;
+    $("heroFlavor").textContent = rank.flavor;
+    $("heroXp").textContent = inLevel;
+    $("heroNextXp").textContent = XP_PER_LEVEL;
+    $("heroXpBar").style.width = `${Math.round(inLevel / XP_PER_LEVEL * 100)}%`;
+    $("heroCompleted").textContent = `達成クエスト ${completed}件`;
+    $("heroNextHint").textContent = `次のレベルまであと${XP_PER_LEVEL - inLevel} XP`;
+    const emblem = document.querySelector(".hero-emblem span");
+    if (emblem) emblem.textContent = rank.emblem;
+    if (!tasks.length) {
+      $("heroQuestTitle").textContent = "最初のクエストを受注しよう";
+      $("heroQuestText").textContent = "課題を登録し、完了すると経験値を獲得できます。";
+    } else if (completed === tasks.length) {
+      $("heroQuestTitle").textContent = "すべてのクエストを達成！";
+      $("heroQuestText").textContent = "見事な成果です。次の挑戦を登録しましょう。";
+    } else if (overdue > 0) {
+      $("heroQuestTitle").textContent = `期限超過クエストが${overdue}件あります`;
+      $("heroQuestText").textContent = "ひとつ選んで、できるところから立て直そう。";
+    } else {
+      $("heroQuestTitle").textContent = "次のクエストが待っている";
+      $("heroQuestText").textContent = "小さなタスクも、完了すれば確かな前進。";
+    }
+    renderAchievements(completed);
+  }
+  function getAchievementDefinitions() {
+    const lifetimeCompleted = history.totalCompleted;
+    const hours = cumulativeRequiredHours();
+    const activeDays = history.studyDays.length;
+    return [
+      {id:"first", icon:"🌱", name:"冒険のはじまり", desc:"最初の課題を完了", unlocked:lifetimeCompleted>=1},
+      {id:"five", icon:"📜", name:"クエスト見習い", desc:"課題を累計5件完了", unlocked:lifetimeCompleted>=5},
+      {id:"ten", icon:"🏅", name:"頼れる冒険者", desc:"課題を累計10件完了", unlocked:lifetimeCompleted>=10},
+      {id:"twentyfive", icon:"🏆", name:"伝説の積み重ね", desc:"課題を累計25件完了", unlocked:lifetimeCompleted>=25},
+      {id:"study5", icon:"⌛", name:"集中の達人", desc:"登録課題の必要作業時間が累計5時間", unlocked:hours>=5},
+      {id:"study25", icon:"📚", name:"学びの探究者", desc:"登録課題の必要作業時間が累計25時間", unlocked:hours>=25},
+      {id:"study100", icon:"🔮", name:"知識の賢者", desc:"登録課題の必要作業時間が累計100時間", unlocked:hours>=100},
+      {id:"days7", icon:"🗓️", name:"習慣の芽", desc:"7日間作業時間を記録", unlocked:activeDays>=7},
+      {id:"days30", icon:"🌟", name:"継続の達人", desc:"30日間作業時間を記録", unlocked:activeDays>=30},
+      {id:"logfirst", icon:"🪶", name:"記録の第一歩", desc:"作業時間を30分以上記録", unlocked:hours>=0.5}
+    ];
+  }
+  function unlockedAchievementIds() {
+    return new Set(getAchievementDefinitions().filter(a => a.unlocked).map(a => a.id));
+  }
+  function getNewlyUnlockedAchievements(previousIds) {
+    return getAchievementDefinitions().filter(a => a.unlocked && !previousIds.has(a.id));
+  }
+  function renderAchievements(completed) {
+    const host = $("achievementList");
+    if (!host) return;
+    const lifetimeCompleted = history.totalCompleted;
+    const hours = cumulativeRequiredHours();
+    const activeDays = history.studyDays.length;
+    const achievements = getAchievementDefinitions();
+    achievements.forEach(a => { if (a.unlocked && !history.achievementDates[a.id]) history.achievementDates[a.id] = new Date().toISOString(); });
+    saveHistory();
+    host.innerHTML = achievements.map(a=>`<div class="achievement ${a.unlocked?'unlocked':'locked'}" title="${escapeHTML(a.desc)}"><span class="achievement-icon">${a.unlocked?a.icon:'🔒'}</span><span class="achievement-copy"><strong>${escapeHTML(a.name)}</strong><small>${escapeHTML(a.desc)}</small>${a.unlocked?`<small class="achievement-date">獲得：${escapeHTML(fullDateLabel(history.achievementDates[a.id]))}</small>`:""}</span><span class="achievement-state">${a.unlocked?'獲得':'未獲得'}</span></div>`).join("");
+    const statsHost = $("lifetimeStats");
+    if (statsHost) {
+      const first = new Date(history.firstUsedAt);
+      const daysUsing = Number.isNaN(first.getTime()) ? 1 : Math.max(1, Math.floor((today() - new Date(first.getFullYear(),first.getMonth(),first.getDate())) / 86400000) + 1);
+      const currentStreak = (() => { let n=0, d=today(); const set=new Set(history.studyDays); while(set.has(isoDate(d))){n++;d.setDate(d.getDate()-1);} if(n===0){d=today();d.setDate(d.getDate()-1);while(set.has(isoDate(d))){n++;d.setDate(d.getDate()-1);}} return n; })();
+      const items = [
+        ["📅","初回利用日",fullDateLabel(history.firstUsedAt)],
+        ["⏳","必要作業時間の合計",durationLabel(cumulativeRequiredHours())],
+        ["✅","累計完了課題",`${lifetimeCompleted}件`],
+        ["🏅","獲得した実績",`${achievements.filter(a=>a.unlocked).length} / ${achievements.length}個`],
+        ["🗓️","作業を記録した日数",`${activeDays}日`],
+        ["🔥","現在の連続記録",`${currentStreak}日`],
+        ["📖","利用開始から",`${daysUsing}日目`],
+        ["📝","作業時間の記録",`${history.workLogCount || 0}回`]
+      ];
+      statsHost.innerHTML = items.map(([icon,label,value])=>`<div class="lifetime-stat"><span class="lifetime-stat-icon">${icon}</span><span class="lifetime-stat-copy"><small>${label}</small><strong>${value}</strong></span></div>`).join("");
+    }
+  }
+  function renderDeadlineNotice() {
+    const notice = $("deadlineNotice");
+    if (!notice) return;
+    const active = tasks.filter(t => !t.completed && t.deadline && Number.isFinite(daysLeft(t.deadline)) && daysLeft(t.deadline) <= 3);
+    const overdueCount = active.filter(taskIsOverdue).length;
+    const upcomingCount = active.length - overdueCount;
+    notice.hidden = active.length === 0;
+    if (!active.length) return;
+    $("deadlineNoticeCount").textContent = `${active.length}`;
+    $("deadlineNoticeTitle").textContent = overdueCount ? `締め切りの確認が必要な課題があります` : `締め切りが近い課題があります`;
+    const details = [];
+    if (overdueCount) details.push(`期限超過 ${overdueCount}件`);
+    if (upcomingCount) details.push(`3日以内 ${upcomingCount}件`);
+    $("deadlineNoticeDetail").textContent = `${details.join(" ・ ")}　一覧を確認`;
+    notice.classList.toggle("has-overdue", overdueCount > 0);
+  }
   function renderStats() {
     const total = tasks.length, completed = tasks.filter(t=>t.completed).length, pending = total-completed;
+    const requiredHoursTotal = cumulativeRequiredHours();
+    const workTotal = $("cumulativeWorkHours");
+    if (workTotal) workTotal.textContent = durationLabel(requiredHoursTotal);
     const rate = total ? Math.round(completed/total*100) : 0;
     $("totalCount").textContent = total; $("pendingCount").textContent = pending; $("completedCount").textContent = completed;
     $("completionRate").textContent = rate; $("completionBar").style.width = `${rate}%`;
@@ -178,7 +314,8 @@
     setEmpty("templateEmpty",templates.length===0);
   }
   function renderAll() {
-    saveTasks(); renderStats(); renderTaskLists(); renderMiniCalendar();
+    reconcileStudyHistory();
+    saveTasks(); saveHeroXp(); saveHistory(); renderHero(); renderStats(); renderTaskLists(); renderMiniCalendar(); renderDeadlineNotice();
     if(currentView==="calendar") renderCalendar();
     if(currentView==="templates") renderTemplates();
   }
@@ -220,7 +357,7 @@
     const existing=tasks.find(t=>String(t.id)===id);
     const startOfToday = today();
     if (d < startOfToday) { showFormError("この締め切り日は過去の日付です。今日以降の日付を選択してください。","deadline"); return; }
-    const item={id:existing?existing.id:nextId++,name,deadline,requiredHours:hours,subject,notes:$("taskNotes").value.trim(),manualPriority:$("manualPriority").value,completed:existing?.completed||false,loggedHours:Number(existing?.loggedHours)||0,createdAt:existing?.createdAt||new Date().toISOString()};
+    const item={id:existing?existing.id:nextId++,name,deadline,requiredHours:hours,subject,notes:$("taskNotes").value.trim(),manualPriority:$("manualPriority").value,completed:existing?.completed||false,xpClaimed:Boolean(existing?.xpClaimed),loggedHours:Number(existing?.loggedHours)||0,createdAt:existing?.createdAt||new Date().toISOString()};
     if(existing) tasks=tasks.map(t=>t.id===existing.id?item:t); else tasks.push(item);
     $("taskDialog").close(); renderAll(); notify(existing?"課題を更新しました":"課題を登録しました");
   }
@@ -228,7 +365,41 @@
     const el=event.target.closest("[data-action]"); if(!el)return;
     const id=Number(el.dataset.id), task=tasks.find(t=>Number(t.id)===id); if(!task)return;
     const action=el.dataset.action;
-    if(action==="toggle"){task.completed=el.checked;renderAll();notify(task.completed?"課題を完了にしました":"未完了に戻しました");}
+    if(action==="toggle"){
+      const previousAchievements = unlockedAchievementIds();
+      const wasCompleted = task.completed;
+      task.completed=el.checked;
+      if (task.completed && !wasCompleted) { history.totalCompleted += 1; saveHistory(); }
+      let earned = 0;
+      if (task.completed && !task.xpClaimed) {
+        earned = 60 + Math.min(40, Math.round((Number(task.requiredHours) || 0) * 8));
+        task.xpClaimed = true;
+        heroXp += earned;
+        saveHeroXp();
+      }
+      renderAll();
+      const newlyUnlocked = getNewlyUnlockedAchievements(previousAchievements);
+      if (newlyUnlocked.length) {
+        const names = newlyUnlocked.map(a=>`${a.icon} ${a.name}`).join("・");
+        notify(`🏆 実績獲得！ ${names}${task.completed && earned > 0 ? `　／　+${earned} XP` : ""}`, 5200);
+      } else notify(task.completed ? `クエスト達成！ +${earned || 0} XP` : "クエストを未完了に戻しました（獲得済みXPは維持されます）");
+    }
+    if(action==="log-time"){
+      const raw = prompt(`「${task.name}」の作業時間を何分記録しますか？\n数字で入力してください（例：30）`);
+      if(raw===null)return;
+      const minutes=Number(raw);
+      if(!Number.isFinite(minutes)||minutes<=0||minutes>1440||!Number.isInteger(minutes)){notify("1〜1440の整数（分）を入力してください。");return;}
+      const previousAchievements=unlockedAchievementIds();
+      const hours=minutes/60;
+      task.loggedHours=(Number(task.loggedHours)||0)+hours;
+      history.totalStudyHours+=hours;
+      history.workLogCount=(Number(history.workLogCount)||0)+1;
+      const dayKey=isoDate(today()); if(!history.studyDays.includes(dayKey))history.studyDays.push(dayKey);
+      saveTasks();saveHistory();renderAll();
+      const newlyUnlocked=getNewlyUnlockedAchievements(previousAchievements);
+      if(newlyUnlocked.length)notify(`🏆 実績獲得！ ${newlyUnlocked.map(a=>`${a.icon} ${a.name}`).join("・")}`,5200);
+      else notify(`${task.name} に作業時間 ${minutes}分を記録しました`);
+    }
     if(action==="edit")openTaskDialog(task);
     if(action==="delete" && confirm(`「${task.name}」を削除しますか？`)){tasks=tasks.filter(t=>Number(t.id)!==id);renderAll();notify("課題を削除しました");}
   }
@@ -255,7 +426,7 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   function exportBackup() {
-    const payload = { app: "Taskly", formatVersion: 1, exportedAt: new Date().toISOString(), tasks, templates };
+    const payload = { app: "Taskly", formatVersion: 3, exportedAt: new Date().toISOString(), tasks, templates, heroXp, history };
     const stamp = isoDate(today());
     downloadBlob(JSON.stringify(payload, null, 2), `taskly-backup-${stamp}.json`, "application/json;charset=utf-8");
     notify("バックアップを保存しました。大切に保管してください。");
@@ -282,6 +453,18 @@
           loggedHours: Math.max(0, Number(t.loggedHours) || 0), createdAt: t.createdAt || new Date().toISOString()
         }));
         templates = data.templates.map(t => ({...t, id: t.id, name: String(t.taskName || t.name), taskName: String(t.taskName || t.name), subject: String(t.subject || ""), requiredHours: Number(t.requiredHours)}));
+        if (data.history && typeof data.history === "object") {
+          history = { ...history, ...data.history, achievementDates: data.history.achievementDates || {}, studyDays: Array.isArray(data.history.studyDays) ? data.history.studyDays : [] };
+        } else {
+          history.totalStudyHours = Math.max(0, Number(history.totalStudyHours) || 0);
+          history.totalCompleted = Math.max(history.totalCompleted, tasks.filter(t=>t.completed).length);
+        }
+        saveHistory();
+        heroXp = Number.isFinite(Number(data.heroXp)) && data.heroXp !== undefined
+          ? Math.max(0, Number(data.heroXp))
+          : data.tasks.filter(t => t && t.completed).length * 70;
+        if (data.heroXp === undefined) tasks.forEach(t => { if (t.completed) t.xpClaimed = true; });
+        saveHeroXp();
         nextId = Math.max(0, ...tasks.map(t => Number(t.id) || 0)) + 1;
         saveTasks(); saveTemplates(); renderAll(); renderTemplates(); renderTaskTemplateOptions();
         notify("バックアップを読み込みました。");
@@ -295,16 +478,15 @@
   function updateTimerDisplay() { const m=Math.floor(timerRemaining/60),s=timerRemaining%60;$("timerDisplay").textContent=`${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`; }
   function stopTimer() { clearInterval(timerInterval);timerInterval=null;timerRunning=false;$("timerStart").textContent="開始"; }
   function finishTimer() {
-    stopTimer(); const elapsedMinutes=Math.round(timerSessionSeconds/60);
-    const taskId=$("timerTaskSelect").value, task=tasks.find(t=>String(t.id)===taskId);
-    if(task && elapsedMinutes > 0){task.loggedHours=(Number(task.loggedHours)||0)+elapsedMinutes/60;renderAll();notify(`${task.name} に${elapsedMinutes}分の作業時間を記録しました`);}
-    else notify("集中時間が終了しました。お疲れさまでした！");
-    $("timerStatus").textContent="タイマー終了。少し休憩しましょう。";timerRemaining=0;updateTimerDisplay();
+    stopTimer();
+    timerRemaining=0; updateTimerDisplay();
+    $("timerStatus").textContent="タイマー終了。作業時間を累計に加える場合は、課題カードの「作業時間を記録」を使ってください。";
+    notify("集中タイマーが終了しました。作業時間は自動加算していません。");
   }
   function toggleTimer() {
     if(timerRunning){stopTimer();$("timerStatus").textContent="一時停止中です。開始すると続きから再開します。";return;}
     if(timerRemaining<=0)setTimerMinutes();
-    timerRunning=true;timerStartedAt=Date.now();$("timerStart").textContent="一時停止";$("timerStatus").textContent="集中中です。終了すると選択した課題に作業時間を記録します。";
+    timerRunning=true;timerStartedAt=Date.now();$("timerStart").textContent="一時停止";$("timerStatus").textContent="集中中です。タイマーは時間計測のみで、作業時間は自動記録されません。";
     timerInterval=setInterval(()=>{timerRemaining--;timerSessionSeconds++;updateTimerDisplay();if(timerRemaining<=0)finishTimer();},1000);
   }
 
@@ -333,6 +515,29 @@
   $("exportBackupButton").addEventListener("click", exportBackup);
   $("importBackupButton").addEventListener("click", () => $("importBackupFile").click());
   $("importBackupFile").addEventListener("change", e => importBackupFile(e.target.files && e.target.files[0]));
+  $("resetAllDataButton").addEventListener("click", () => {
+    const accepted = confirm("本当にすべてのデータをリセットしますか？\n\n・登録した課題と完了状況\n・課題ごとの作業時間\n・経験値とレベル／冒険ランク\n・自分で登録したテンプレート\n\nこの操作は元に戻せません。先にバックアップを保存することをおすすめします。");
+    if (!accepted) return;
+    const confirmation = prompt("リセットを実行するには「RESET」と入力してください。");
+    if (confirmation !== "RESET") { notify("リセットをキャンセルしました。"); return; }
+    stopTimer();
+    tasks = [];
+    heroXp = 0;
+    history = { firstUsedAt: new Date().toISOString(), totalStudyHours: 0, totalCompleted: 0, studySessions: 0, workLogCount: 0, studyDays: [], achievementDates: {} };
+    templates = [
+      {id:Date.now()+1,name:"レポート課題",taskName:"レポートを作成して提出する",subject:"レポート",requiredHours:3},
+      {id:Date.now()+2,name:"プログラミング課題",taskName:"プログラムを作成・動作確認する",subject:"プログラミング",requiredHours:2},
+      {id:Date.now()+3,name:"試験勉強",taskName:"試験範囲を復習する",subject:"試験勉強",requiredHours:2}
+    ];
+    nextId = 1;
+    localStorage.removeItem("taskManagementAppTasks");
+    saveTasks(); saveTemplates(); saveHeroXp(); saveHistory();
+    setTimerMinutes();
+    $("timerStatus").textContent = "データをリセットしました。新しい冒険を始めましょう。";
+    renderAll(); renderTemplates(); renderTaskTemplateOptions();
+    showView("dashboard");
+    notify("データをリセットしました。新しい冒険の始まりです！");
+  });
   $("timerStart").addEventListener("click",toggleTimer);
   $("timerReset").addEventListener("click",()=>{stopTimer();setTimerMinutes();$("timerStatus").textContent="タイマーをリセットしました。";});
   $("timerMinutes").addEventListener("change",setTimerMinutes);
