@@ -3,28 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Taskly | 学生向けタスク管理</title>
+  <title>Taskly RPG | 学びの冒険ギルド</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="app-shell">
     <aside class="sidebar">
       <a class="brand" href="#" aria-label="Taskly ホーム">
-        <span class="brand-mark">T</span><span>taskly</span>
+        <span class="brand-mark">✦</span><span>Taskly <small class="brand-sub">ADVENTURE GUILD</small></span>
       </a>
-      <div class="sidebar-label">WORKSPACE</div>
+      <div class="sidebar-label">冒険メニュー</div>
       <nav class="nav-menu" aria-label="メインメニュー">
         <button class="nav-item active" data-view="dashboard"><span>▦</span> ダッシュボード</button>
         <button class="nav-item" data-view="tasks"><span>☷</span> すべての課題</button>
         <button class="nav-item" data-view="calendar"><span>▦</span> カレンダー</button>
         <button class="nav-item" data-view="templates"><span>◇</span> 課題テンプレート</button>
+        <button class="nav-item" data-view="achievements"><span>🏅</span> 実績・学習記録</button>
       </nav>
       <div class="sidebar-bottom">
-        <div class="sidebar-label">今日のひとこと</div>
+        <div class="sidebar-label">ギルドからの助言</div>
         <div class="focus-note">
           <span class="note-icon">✦</span>
-          <p>小さな一歩を積み重ねよう。</p>
-          <span class="note-sub">今日できることから始めよう</span>
+          <p>経験値は一歩ずつ。</p>
+          <span class="note-sub">今日のクエストをひとつ進めよう</span>
         </div>
         <div class="storage-note"><span class="status-dot"></span> このブラウザに保存中</div>
       </div>
@@ -33,12 +34,19 @@
     <main class="main-content">
       <header class="topbar">
         <div>
-          <p class="eyebrow" id="todayLabel">YOUR STUDY SPACE</p>
-          <h1 id="pageTitle">おかえりなさい 👋</h1>
-          <p class="subtitle" id="pageSubtitle">今日の課題を確認して、少しずつ進めましょう。</p>
+          <p class="eyebrow" id="todayLabel">ADVENTURER’S LOG</p>
+          <h1 id="pageTitle">冒険者よ、おかえりなさい！</h1>
+          <p class="subtitle" id="pageSubtitle">クエストを達成して、少しずつレベルアップしよう。</p>
         </div>
         <button class="primary-button" id="newTaskTopButton">＋ 課題を追加</button>
       </header>
+
+      <button class="deadline-notice" id="deadlineNotice" type="button" data-go="tasks" hidden aria-live="polite">
+        <span class="deadline-notice-icon" aria-hidden="true">◷</span>
+        <span class="deadline-notice-copy"><strong id="deadlineNoticeTitle">締め切りが近い課題があります</strong><small id="deadlineNoticeDetail">課題一覧で確認しましょう</small></span>
+        <span class="deadline-notice-count" id="deadlineNoticeCount">0</span>
+        <span class="deadline-notice-arrow" aria-hidden="true">›</span>
+      </button>
 
       <section class="view-panel active" id="dashboardView">
         <div class="stats-grid">
@@ -64,6 +72,18 @@
           </article>
         </div>
 
+        <section class="hero-panel" aria-label="冒険者ステータス">
+          <div class="hero-art" aria-hidden="true"><div class="hero-sun"></div><div class="hero-mountain mountain-back"></div><div class="hero-mountain mountain-front"></div><div class="hero-castle">♜</div><div class="hero-spark spark-one">✦</div><div class="hero-spark spark-two">✧</div><div class="hero-character gear-0"><span class="hero-cape"></span><span class="hero-head"></span><span class="hero-hair"></span><span class="hero-body"></span><span class="hero-arm arm-left"></span><span class="hero-arm arm-right"></span><span class="hero-leg leg-left"></span><span class="hero-leg leg-right"></span><span class="hero-weapon"></span><span class="hero-shield"></span></div></div>
+          <div class="hero-content">
+            <div class="hero-kicker"><span class="quest-gem">◆</span> ADVENTURER STATUS <span class="hero-rule"></span></div>
+            <div class="hero-main"><div><p class="hero-rank" id="heroRank">駆け出しの冒険者</p><h2>レベル <span id="heroLevel">1</span></h2><p class="hero-flavor" id="heroFlavor">最初の一歩が、伝説の始まり。</p></div><div class="hero-emblem" aria-hidden="true"><span>⚔</span><small>HERO</small></div></div>
+            <div class="xp-label"><span>経験値 XP</span><strong><span id="heroXp">0</span> / <span id="heroNextXp">100</span></strong></div>
+            <div class="xp-track"><div class="xp-fill" id="heroXpBar"></div><span class="xp-glint"></span></div>
+            <div class="hero-bottom"><span id="heroCompleted">達成クエスト 0件</span><span id="heroNextHint">次のレベルまであと100 XP</span></div>
+          </div>
+          <div class="hero-quest-callout"><span class="callout-icon">✧</span><div><strong id="heroQuestTitle">最初のクエストを受注しよう</strong><p id="heroQuestText">課題を登録し、完了すると経験値を獲得できます。</p></div></div>
+        </section>
+
         <div class="dashboard-grid">
           <section class="panel task-panel">
             <div class="panel-heading">
@@ -74,7 +94,7 @@
             <div class="empty-state" id="dashboardEmpty"><span>✧</span><strong>課題はまだありません</strong><p>最初の課題を登録してみましょう。</p></div>
           </section>
           <section class="panel progress-panel">
-            <div class="panel-heading"><div><h2>今の進捗</h2><p>課題の完了状況</p></div></div>
+            <div class="panel-heading"><div><h2>🏆 冒険の記録</h2><p>これまでの達成状況</p></div></div>
             <div class="donut-wrap"><div class="donut" id="progressDonut"><div class="donut-center"><strong id="donutRate">0%</strong><span>完了</span></div></div></div>
             <div class="legend-row"><span><i class="legend-dot done-dot"></i>完了</span><strong id="legendDone">0</strong></div>
             <div class="legend-row"><span><i class="legend-dot todo-dot"></i>未完了</span><strong id="legendTodo">0</strong></div>
@@ -90,11 +110,16 @@
           </div>
           <div id="miniCalendar" class="mini-calendar"></div>
         </section>
+
+        <section class="panel achievements-panel dashboard-achievements" aria-label="冒険者の実績">
+          <div class="panel-heading"><div><h2>🏅 冒険者の実績</h2><p>課題を達成して称号を集めよう</p></div><span class="achievement-hint">一歩ずつで大丈夫</span></div>
+          <div id="achievementList" class="achievement-list"></div>
+        </section>
       </section>
 
       <section class="view-panel" id="tasksView">
         <section class="panel">
-          <div class="panel-heading"><div><h2>すべての課題</h2><p>検索・絞り込み・編集ができます</p></div><button class="primary-button" id="newTaskListButton">＋ 課題を追加</button></div>
+          <div class="panel-heading"><div><h2>📜 クエスト一覧</h2><p>検索・絞り込み・編集ができます</p></div><button class="primary-button" id="newTaskListButton">＋ 課題を追加</button></div>
           <div class="task-list-tools"><p>完了した課題は個別に削除するか、まとめて整理できます。</p><button class="danger-button" id="clearCompletedButton" type="button">✓ 完了済みを一括削除</button></div>
           <div class="filter-row">
             <label class="search-box"><span>⌕</span><input id="searchInput" type="search" placeholder="課題名・科目で検索"></label>
@@ -109,16 +134,28 @@
 
       <section class="view-panel" id="calendarView">
         <section class="panel">
-          <div class="panel-heading calendar-heading"><div><h2>課題カレンダー</h2><p>締め切り日を選ぶと、その日の課題を確認できます</p></div><div class="month-controls"><button id="prevMonth" aria-label="前の月">‹</button><strong id="calendarMonthLabel"></strong><button id="nextMonth" aria-label="次の月">›</button></div></div>
+          <div class="panel-heading calendar-heading"><div><h2>🗺 クエストマップ</h2><p>日付を選ぶと、その日のクエストを確認できます</p></div><div class="month-controls"><button id="prevMonth" aria-label="前の月">‹</button><strong id="calendarMonthLabel"></strong><button id="nextMonth" aria-label="次の月">›</button></div></div>
           <div class="calendar-layout"><div id="fullCalendar" class="full-calendar"></div><aside class="day-detail"><h3 id="selectedDateLabel">日付を選択</h3><div id="selectedDayTasks"></div></aside></div>
           <div class="calendar-help"><span><i class="calendar-dot overdue-dot"></i>期限超過</span><span><i class="calendar-dot pending-dot"></i>未完了</span><span><i class="calendar-dot completed-dot"></i>完了</span><span class="calendar-instruction">日付を選択すると、右側にその日の課題が表示されます。</span></div>
+        </section>
+      </section>
+
+      <section class="view-panel" id="achievementsView">
+        <div class="achievements-page-intro">
+          <span class="achievements-page-emblem">🏅</span>
+          <div><p class="eyebrow">GUILD ARCHIVE</p><h2>実績・学習記録</h2><p>これまでに達成した冒険と、積み重ねてきた学習の記録を振り返りましょう。</p></div>
+        </div>
+        <section class="panel lifetime-panel" aria-label="これまでの学習記録">
+          <div class="panel-heading"><div><h2>📖 冒険の歩み</h2><p>Tasklyを使い始めてからの、あなたの学習ヒストリー</p></div><span class="lifetime-stamp">LIFETIME RECORD</span></div>
+          <div id="lifetimeStats" class="lifetime-stats"></div>
+          <p class="lifetime-note">※ 累計作業時間は、課題カードの「作業時間を記録」から手動で追加した時間です。集中タイマーの時間は累計に加算されません。</p>
         </section>
       </section>
 
       <section class="view-panel" id="templatesView">
         <div class="templates-layout">
           <section class="panel">
-            <div class="panel-heading"><div><h2>課題テンプレート</h2><p>よく使う課題の入力内容を保存できます</p></div></div>
+            <div class="panel-heading"><div><h2>📖 クエストの雛形</h2><p>よく使うクエストを登録できます</p></div></div>
             <form id="templateForm" class="stack-form">
               <label>課題名（テンプレート名）<input id="templateTaskName" required maxlength="120" placeholder="例：プログラミング課題を提出する"></label>
               <p class="field-hint">ここに入力した課題名が、そのままテンプレート一覧と選択メニューに表示されます。</p>
@@ -148,11 +185,16 @@
           <button type="button" class="secondary-button" id="importBackupButton">↑ バックアップを読み込む</button>
           <input id="importBackupFile" type="file" accept=".json,application/json" hidden>
         </div>
+        <div class="data-tools reset-tools">
+          <div class="data-tool-copy"><strong>冒険の記録をリセット</strong><span>登録した課題・作業時間・獲得経験値を初期化します。テンプレートは初期セットに戻ります。</span></div>
+          <button type="button" class="danger-button reset-all-button" id="resetAllDataButton">↻ すべてのデータをリセット</button>
+        </div>
         <p class="data-warning"><strong>保存について：</strong>データはこのブラウザ内に保存されます。スマホとパソコンのデータは自動同期されないため、端末を移す場合はバックアップを利用してください。</p>
+        <p class="reset-warning">⚠ リセットすると元に戻せません。必要な場合は、先にバックアップを保存してください。</p>
       </section>
 
       <section class="panel timer-panel">
-        <div class="timer-info"><span class="timer-icon">◷</span><div><h2>集中タイマー</h2><p>短い時間から集中して取り組もう</p></div></div>
+        <div class="timer-info"><span class="timer-icon">⌛</span><div><h2>修行タイマー</h2><p>集中して経験を積もう</p></div></div>
         <div class="timer-controls">
           <select id="timerTaskSelect" aria-label="時間を記録する課題"><option value="">課題を選択（任意）</option></select>
           <div class="timer-display" id="timerDisplay">25:00</div>
@@ -162,9 +204,9 @@
             <select id="timerMinutes"><option value="25">25分</option><option value="15">15分</option><option value="45">45分</option><option value="60">60分</option></select>
           </label>
         </div>
-        <p class="timer-status" id="timerStatus">開始すると、選択した課題の作業時間を記録します。</p>
+        <p class="timer-status" id="timerStatus">集中タイマーは時間計測のみです。累計作業時間には自動加算されません。</p>
       </section>
-      <footer class="app-footer">Taskly <span>·</span> あなたの学びを、もっとスマートに。</footer>
+      <footer class="app-footer">Taskly RPG <span>✦</span> 今日の一歩が、明日のレベルになる。</footer>
     </main>
   </div>
 
