@@ -152,11 +152,11 @@
     const rankIndex = Math.min(ranks.length - 1, Math.floor((level - 1) / 2));
     const rank = ranks[rankIndex];
     const panel = document.querySelector(".hero-panel");
-    const character = document.querySelector(".hero-character");
-    if(character){ character.classList.remove(...Array.from({length:10},(_,i)=>`gear-${i}`)); character.classList.add(`gear-${rankIndex}`); character.setAttribute("aria-label", `${rank.name}の装備`); }
     if (panel) {
       panel.classList.remove(...Array.from({length:10}, (_,i)=>`rank-${i}`));
       panel.classList.add(`rank-${rankIndex}`);
+      document.documentElement.classList.remove(...Array.from({length:10}, (_,i)=>`adventure-rank-${i}`));
+      document.documentElement.classList.add(`adventure-rank-${rankIndex}`);
     }
     $("heroRank").textContent = rank.name;
     $("heroLevel").textContent = level;
@@ -185,16 +185,16 @@
   }
   function getAchievementDefinitions() {
     const lifetimeCompleted = history.totalCompleted;
-    const hours = cumulativeRequiredHours();
+    const hours = Math.max(0, Number(history.totalStudyHours) || 0);
     const activeDays = history.studyDays.length;
     return [
       {id:"first", icon:"🌱", name:"冒険のはじまり", desc:"最初の課題を完了", unlocked:lifetimeCompleted>=1},
       {id:"five", icon:"📜", name:"クエスト見習い", desc:"課題を累計5件完了", unlocked:lifetimeCompleted>=5},
       {id:"ten", icon:"🏅", name:"頼れる冒険者", desc:"課題を累計10件完了", unlocked:lifetimeCompleted>=10},
       {id:"twentyfive", icon:"🏆", name:"伝説の積み重ね", desc:"課題を累計25件完了", unlocked:lifetimeCompleted>=25},
-      {id:"study5", icon:"⌛", name:"集中の達人", desc:"登録課題の必要作業時間が累計5時間", unlocked:hours>=5},
-      {id:"study25", icon:"📚", name:"学びの探究者", desc:"登録課題の必要作業時間が累計25時間", unlocked:hours>=25},
-      {id:"study100", icon:"🔮", name:"知識の賢者", desc:"登録課題の必要作業時間が累計100時間", unlocked:hours>=100},
+      {id:"study5", icon:"⌛", name:"集中の達人", desc:"実際に記録した作業時間が累計5時間", unlocked:hours>=5},
+      {id:"study25", icon:"📚", name:"学びの探究者", desc:"実際に記録した作業時間が累計25時間", unlocked:hours>=25},
+      {id:"study100", icon:"🔮", name:"知識の賢者", desc:"実際に記録した作業時間が累計100時間", unlocked:hours>=100},
       {id:"days7", icon:"🗓️", name:"習慣の芽", desc:"7日間作業時間を記録", unlocked:activeDays>=7},
       {id:"days30", icon:"🌟", name:"継続の達人", desc:"30日間作業時間を記録", unlocked:activeDays>=30},
       {id:"logfirst", icon:"🪶", name:"記録の第一歩", desc:"作業時間を30分以上記録", unlocked:hours>=0.5}
@@ -204,8 +204,16 @@
     return new Set(getAchievementDefinitions().filter(a => a.unlocked).map(a => a.id));
   }
   function getNewlyUnlockedAchievements(previousIds) {
-    return getAchievementDefinitions().filter(a => a.unlocked && !previousIds.has(a.id));
+    const newly = getAchievementDefinitions().filter(a => a.unlocked && !previousIds.has(a.id));
+    if (newly.length) {
+      newly.forEach(a => { if (!history.achievementDates[a.id]) history.achievementDates[a.id] = new Date().toISOString(); });
+      saveHistory();
+    }
+    return newly;
   }
+  // Record timestamps for already-unlocked achievements once during initialization.
+  getAchievementDefinitions().forEach(a => { if (a.unlocked && !history.achievementDates[a.id]) history.achievementDates[a.id] = new Date().toISOString(); });
+  saveHistory();
   function renderAchievements(completed) {
     const host = $("achievementList");
     if (!host) return;
@@ -213,8 +221,6 @@
     const hours = cumulativeRequiredHours();
     const activeDays = history.studyDays.length;
     const achievements = getAchievementDefinitions();
-    achievements.forEach(a => { if (a.unlocked && !history.achievementDates[a.id]) history.achievementDates[a.id] = new Date().toISOString(); });
-    saveHistory();
     host.innerHTML = achievements.map(a=>`<div class="achievement ${a.unlocked?'unlocked':'locked'}" title="${escapeHTML(a.desc)}"><span class="achievement-icon">${a.unlocked?a.icon:'🔒'}</span><span class="achievement-copy"><strong>${escapeHTML(a.name)}</strong><small>${escapeHTML(a.desc)}</small>${a.unlocked?`<small class="achievement-date">獲得：${escapeHTML(fullDateLabel(history.achievementDates[a.id]))}</small>`:""}</span><span class="achievement-state">${a.unlocked?'獲得':'未獲得'}</span></div>`).join("");
     const statsHost = $("lifetimeStats");
     if (statsHost) {
@@ -223,7 +229,8 @@
       const currentStreak = (() => { let n=0, d=today(); const set=new Set(history.studyDays); while(set.has(isoDate(d))){n++;d.setDate(d.getDate()-1);} if(n===0){d=today();d.setDate(d.getDate()-1);while(set.has(isoDate(d))){n++;d.setDate(d.getDate()-1);}} return n; })();
       const items = [
         ["📅","初回利用日",fullDateLabel(history.firstUsedAt)],
-        ["⏳","必要作業時間の合計",durationLabel(cumulativeRequiredHours())],
+        ["⏳","登録課題の必要時間合計",durationLabel(cumulativeRequiredHours())],
+        ["🕒","実際に記録した作業時間",durationLabel(history.totalStudyHours)],
         ["✅","累計完了課題",`${lifetimeCompleted}件`],
         ["🏅","獲得した実績",`${achievements.filter(a=>a.unlocked).length} / ${achievements.length}個`],
         ["🗓️","作業を記録した日数",`${activeDays}日`],
@@ -361,6 +368,28 @@
     if(existing) tasks=tasks.map(t=>t.id===existing.id?item:t); else tasks.push(item);
     $("taskDialog").close(); renderAll(); notify(existing?"課題を更新しました":"課題を登録しました");
   }
+  function showLevelUp(level, rankName, rankIndex) {
+    const overlay = $("levelUpOverlay");
+    if (!overlay) return;
+    overlay.className = `level-up-overlay rank-${rankIndex} active`;
+    $("levelUpLevel").textContent = `LEVEL ${level}`;
+    $("levelUpRank").textContent = rankName;
+    $("levelUpMessage").textContent = rankIndex > 0 ? "新たな冒険ランクに昇格！積み重ねた努力が、あなたの力になりました。" : "経験を積み、新たなレベルに到達しました。次の冒険へ！";
+    overlay.setAttribute("aria-hidden", "false");
+    document.body.classList.add("level-up-open");
+    $("levelUpClose").focus();
+  }
+  function closeLevelUp() {
+    const overlay = $("levelUpOverlay");
+    if (!overlay) return;
+    overlay.classList.remove("active");
+    overlay.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("level-up-open");
+  }
+  $("levelUpClose")?.addEventListener("click", closeLevelUp);
+  $("levelUpOverlay")?.addEventListener("click", (event) => { if (event.target.classList.contains("level-up-backdrop")) closeLevelUp(); });
+  document.addEventListener("keydown", (event) => { if (event.key === "Escape" && $("levelUpOverlay")?.classList.contains("active")) closeLevelUp(); });
+
   function handleTaskAction(event) {
     const el=event.target.closest("[data-action]"); if(!el)return;
     const id=Number(el.dataset.id), task=tasks.find(t=>Number(t.id)===id); if(!task)return;
@@ -370,6 +399,7 @@
       const wasCompleted = task.completed;
       task.completed=el.checked;
       if (task.completed && !wasCompleted) { history.totalCompleted += 1; saveHistory(); }
+      const previousLevel = Math.floor(heroXp / 80) + 1;
       let earned = 0;
       if (task.completed && !task.xpClaimed) {
         earned = 60 + Math.min(40, Math.round((Number(task.requiredHours) || 0) * 8));
@@ -378,6 +408,13 @@
         saveHeroXp();
       }
       renderAll();
+      const currentLevel = Math.floor(heroXp / 80) + 1;
+      const previousRankIndex = Math.min(9, Math.floor((previousLevel - 1) / 2));
+      const currentRankIndex = Math.min(9, Math.floor((currentLevel - 1) / 2));
+      if (currentRankIndex > previousRankIndex) {
+        const rankNames = ["駆け出しの冒険者","見習いクエスター","森のレンジャー","鋼鉄の守護騎士","魔導学院の賢者","王国のエリート","竜狩りの英雄","聖剣の継承者","星詠みの覇者","永遠の伝説"];
+        showLevelUp(currentLevel, rankNames[currentRankIndex], currentRankIndex);
+      }
       const newlyUnlocked = getNewlyUnlockedAchievements(previousAchievements);
       if (newlyUnlocked.length) {
         const names = newlyUnlocked.map(a=>`${a.icon} ${a.name}`).join("・");
