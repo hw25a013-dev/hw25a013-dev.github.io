@@ -73,7 +73,7 @@
         </div>
 
         <section class="hero-panel" aria-label="冒険者ステータス">
-          <div class="hero-art" aria-hidden="true"><div class="hero-sun"></div><div class="hero-mountain mountain-back"></div><div class="hero-mountain mountain-front"></div><div class="hero-castle">♜</div><div class="hero-spark spark-one">✦</div><div class="hero-spark spark-two">✧</div><div class="hero-character gear-0"><span class="hero-cape"></span><span class="hero-head"></span><span class="hero-hair"></span><span class="hero-body"></span><span class="hero-arm arm-left"></span><span class="hero-arm arm-right"></span><span class="hero-leg leg-left"></span><span class="hero-leg leg-right"></span><span class="hero-weapon"></span><span class="hero-shield"></span></div></div>
+          <div class="hero-art" aria-hidden="true"><div class="hero-sun"></div><div class="hero-mountain mountain-back"></div><div class="hero-mountain mountain-front"></div><div class="hero-castle">♜</div><div class="hero-spark spark-one">✦</div><div class="hero-spark spark-two">✧</div></div>
           <div class="hero-content">
             <div class="hero-kicker"><span class="quest-gem">◆</span> ADVENTURER STATUS <span class="hero-rule"></span></div>
             <div class="hero-main"><div><p class="hero-rank" id="heroRank">駆け出しの冒険者</p><h2>レベル <span id="heroLevel">1</span></h2><p class="hero-flavor" id="heroFlavor">最初の一歩が、伝説の始まり。</p></div><div class="hero-emblem" aria-hidden="true"><span>⚔</span><small>HERO</small></div></div>
@@ -230,6 +230,18 @@
     </form>
   </dialog>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <section class="level-up-overlay" id="levelUpOverlay" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="levelUpTitle">
+    <div class="level-up-backdrop"></div>
+    <div class="level-up-card">
+      <div class="level-up-sparkles" aria-hidden="true">✦　✧　✦</div>
+      <p class="level-up-kicker">ADVENTURE PROGRESS</p>
+      <h2 id="levelUpTitle">LEVEL UP!</h2>
+      <p class="level-up-level" id="levelUpLevel">LEVEL 2</p>
+      <div class="level-up-rank" id="levelUpRank">見習いクエスター</div>
+      <p class="level-up-message" id="levelUpMessage">努力が新たな力になりました。</p>
+      <button type="button" id="levelUpClose" class="level-up-close">冒険を続ける</button>
+    </div>
+  </section>
   <script src="script.js"></script>
 </body>
 </html>
