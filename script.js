@@ -69,6 +69,63 @@
     const toast = $("toast"); toast.textContent = message; toast.classList.add("show");
     clearTimeout(toastTimeout); toastTimeout = setTimeout(() => toast.classList.remove("show"), duration);
   }
+  function showRankPromotion() {
+    const panel = document.querySelector(".hero-panel");
+    const rankName = $("heroRank")?.textContent || "新たな冒険者";
+    const level = $("heroLevel")?.textContent || "";
+    const emblem = document.querySelector(".hero-emblem span")?.textContent || "✦";
+    const overlay = document.createElement("div");
+    overlay.className = "rank-promotion-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", "ランク昇格");
+    overlay.innerHTML = `<div class="rank-promotion-card">
+      <div class="rank-promotion-rays" aria-hidden="true"></div>
+      <p class="rank-promotion-kicker">✦ RANK UP ✦</p>
+      <div class="rank-promotion-emblem" aria-hidden="true">${escapeHTML(emblem)}</div>
+      <p class="rank-promotion-caption">新たな称号を手に入れた！</p>
+      <h2 class="rank-promotion-name">${escapeHTML(rankName)}</h2>
+      <p class="rank-promotion-level">LEVEL ${escapeHTML(level)}</p>
+      <button class="rank-promotion-close" type="button">冒険を続ける</button>
+    </div>`;
+    const close = () => { overlay.classList.add("is-leaving"); setTimeout(() => overlay.remove(), 220); };
+    overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
+    overlay.querySelector(".rank-promotion-close").addEventListener("click", close);
+    document.addEventListener("keydown", function onKey(e) {
+      if (e.key === "Escape" && overlay.isConnected) { close(); document.removeEventListener("keydown", onKey); }
+    });
+    document.body.appendChild(overlay);
+    overlay.querySelector(".rank-promotion-close").focus();
+  }
+  function showAchievementUnlock(achievement) {
+    const overlay = document.createElement("div");
+    overlay.className = "rank-promotion-overlay achievement-unlock-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", "実績獲得");
+    overlay.innerHTML = `<div class="rank-promotion-card achievement-unlock-card">
+      <div class="rank-promotion-rays" aria-hidden="true"></div>
+      <p class="rank-promotion-kicker">✦ ACHIEVEMENT UNLOCKED ✦</p>
+      <div class="rank-promotion-emblem achievement-unlock-emblem" aria-hidden="true">${escapeHTML(achievement.icon)}</div>
+      <p class="rank-promotion-caption">新しい実績を獲得しました！</p>
+      <h2 class="rank-promotion-name">${escapeHTML(achievement.name)}</h2>
+      <p class="achievement-unlock-description">${escapeHTML(achievement.desc)}</p>
+      <button class="rank-promotion-close" type="button">コレクションに追加！</button>
+    </div>`;
+    const close = () => { if (!overlay.isConnected) return; overlay.classList.add("is-leaving"); setTimeout(() => overlay.remove(), 220); };
+    overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
+    overlay.querySelector(".rank-promotion-close").addEventListener("click", close);
+    document.addEventListener("keydown", function onKey(e) {
+      if (e.key === "Escape" && overlay.isConnected) { close(); document.removeEventListener("keydown", onKey); }
+    });
+    document.body.appendChild(overlay);
+    overlay.querySelector(".rank-promotion-close").focus();
+  }
+  function celebrateAchievements(achievements, delay=0) {
+    achievements.forEach((achievement, index) => {
+      setTimeout(() => showAchievementUnlock(achievement), delay + index * 9000);
+    });
+  }
   function showView(view) {
     currentView = view;
     document.querySelectorAll(".view-panel").forEach(el => el.classList.remove("active"));
@@ -219,6 +276,12 @@
     const hours = cumulativeRequiredHours();
     const activeDays = history.studyDays.length;
     const achievements = getAchievementDefinitions();
+    const milestone = achievements.filter(a => !a.unlocked).map(a => {
+      const targets = {first:[history.totalCompleted,1,"課題"],five:[history.totalCompleted,5,"課題"],ten:[history.totalCompleted,10,"課題"],twentyfive:[history.totalCompleted,25,"課題"],study5:[history.totalStudyHours,5,"時間"],study25:[history.totalStudyHours,25,"時間"],study100:[history.totalStudyHours,100,"時間"],days7:[history.studyDays.length,7,"日"],days30:[history.studyDays.length,30,"日"],logfirst:[history.totalStudyHours,.5,"時間"]}[a.id];
+      return {...a, current:targets[0], target:targets[1], unit:targets[2], ratio:Math.min(1, targets[0]/targets[1])};
+    }).sort((a,b)=>a.ratio-b.ratio)[0];
+    const milestoneHost = $("nextAchievement");
+    if (milestoneHost) milestoneHost.innerHTML = milestone ? `<div class="next-achievement-icon">${milestone.icon}</div><div class="next-achievement-copy"><strong>次の目標：${escapeHTML(milestone.name)}</strong><small>${escapeHTML(milestone.desc)} · ${milestone.current.toLocaleString("ja-JP",{maximumFractionDigits:1})} / ${milestone.target}${milestone.unit}</small><div class="next-achievement-track"><span style="width:${Math.round(milestone.ratio*100)}%"></span></div></div><strong class="next-achievement-percent">${Math.round(milestone.ratio*100)}%</strong>` : `<div class="next-achievement-copy"><strong>すべての実績を獲得！</strong><small>すばらしい積み重ねです。自分のペースで次の目標へ。</small></div>`;
     host.innerHTML = achievements.map(a=>`<div class="achievement ${a.unlocked?'unlocked':'locked'}" title="${escapeHTML(a.desc)}"><span class="achievement-icon">${a.unlocked?a.icon:'🔒'}</span><span class="achievement-copy"><strong>${escapeHTML(a.name)}</strong><small>${escapeHTML(a.desc)}</small>${a.unlocked?`<small class="achievement-date">獲得：${escapeHTML(fullDateLabel(history.achievementDates[a.id]))}</small>`:""}</span><span class="achievement-state">${a.unlocked?'獲得':'未獲得'}</span></div>`).join("");
     const statsHost = $("lifetimeStats");
     if (statsHost) {
@@ -376,17 +439,21 @@
       task.completed=el.checked;
       if (task.completed && !wasCompleted) { history.totalCompleted += 1; saveHistory(); }
       let earned = 0;
+      const previousRankIndex = Math.min(9, Math.floor((Math.floor(heroXp / 80)) / 2));
       if (task.completed && !task.xpClaimed) {
         earned = 60 + Math.min(40, Math.round((Number(task.requiredHours) || 0) * 8));
         task.xpClaimed = true;
         heroXp += earned;
         saveHeroXp();
       }
+      const currentRankIndex = Math.min(9, Math.floor((Math.floor(heroXp / 80)) / 2));
       renderAll();
+      const rankUp = task.completed && earned > 0 && currentRankIndex > previousRankIndex;
+      if (rankUp) setTimeout(showRankPromotion, 180);
       const newlyUnlocked = getNewlyUnlockedAchievements(previousAchievements);
       if (newlyUnlocked.length) {
-        const names = newlyUnlocked.map(a=>`${a.icon} ${a.name}`).join("・");
-        notify(`🏆 実績獲得！ ${names}${task.completed && earned > 0 ? `　／　+${earned} XP` : ""}`, 5200);
+        notify(`🏆 実績を${newlyUnlocked.length}個獲得！ ${task.completed && earned > 0 ? `／ +${earned} XP` : ""}`, 5200);
+        celebrateAchievements(newlyUnlocked, rankUp ? 5200 : 180);
       } else notify(task.completed ? `クエスト達成！ +${earned || 0} XP` : "クエストを未完了に戻しました（獲得済みXPは維持されます）");
     }
     if(action==="log-time"){
@@ -402,8 +469,10 @@
       const dayKey=isoDate(today()); if(!history.studyDays.includes(dayKey))history.studyDays.push(dayKey);
       saveTasks();saveHistory();renderAll();
       const newlyUnlocked=getNewlyUnlockedAchievements(previousAchievements);
-      if(newlyUnlocked.length)notify(`🏆 実績獲得！ ${newlyUnlocked.map(a=>`${a.icon} ${a.name}`).join("・")}`,5200);
-      else notify(`${task.name} に作業時間 ${minutes}分を記録しました`);
+      if(newlyUnlocked.length) {
+        notify(`🏆 実績を${newlyUnlocked.length}個獲得！`, 5200);
+        celebrateAchievements(newlyUnlocked, 180);
+      } else notify(`${task.name} に作業時間 ${minutes}分を記録しました`);
     }
     if(action==="edit")openTaskDialog(task);
     if(action==="delete" && confirm(`「${task.name}」を削除しますか？`)){tasks=tasks.filter(t=>Number(t.id)!==id);renderAll();notify("課題を削除しました");}
