@@ -4887,3 +4887,109 @@ button:active {
   background: #e5f4ea;
   color: #26744b;
 }
+
+/* Rank promotion celebration */
+.rank-promotion-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: rgba(12, 18, 34, .78);
+  backdrop-filter: blur(8px);
+  animation: rank-overlay-in .28s ease-out both;
+}
+.rank-promotion-card {
+  --promotion-accent: var(--rank-accent, #e6d17d);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  width: min(440px, 100%);
+  padding: 34px 26px 28px;
+  border: 2px solid var(--promotion-accent);
+  border-radius: 26px;
+  background: linear-gradient(155deg, #fffdf4 0%, #f8f0d9 52%, #e8e4f5 100%);
+  color: #293047;
+  text-align: center;
+  box-shadow: 0 22px 80px rgba(0,0,0,.38), 0 0 34px color-mix(in srgb, var(--promotion-accent) 45%, transparent);
+  animation: rank-card-pop .65s cubic-bezier(.16,1.35,.4,1) both;
+}
+.rank-promotion-rays {
+  position: absolute;
+  z-index: -1;
+  width: 360px;
+  height: 360px;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, #e7c96b22 0deg 9deg, transparent 9deg 18deg);
+  transform: translate(-50%, -50%);
+  animation: rank-rays-spin 24s linear infinite;
+}
+.rank-promotion-kicker {
+  margin: 0 0 14px;
+  color: #98721c;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: .24em;
+}
+.rank-promotion-emblem {
+  display: grid;
+  place-items: center;
+  width: 104px;
+  height: 104px;
+  margin: 0 auto 16px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #fff8d8, var(--promotion-accent));
+  color: #57451b;
+  font-size: 48px;
+  box-shadow: 0 8px 28px #8b6a2838, inset 0 0 0 1px #b99a4b;
+  animation: rank-emblem-glow 1.8s ease-in-out infinite alternate;
+}
+.rank-promotion-caption { margin: 0 0 7px; color: #777083; font-size: 13px; font-weight: 700; }
+.rank-promotion-name { margin: 0; color: #30334a; font-size: clamp(23px, 6vw, 31px); font-weight: 900; }
+.rank-promotion-level { margin: 9px 0 23px; color: #98721c; font-size: 12px; font-weight: 900; letter-spacing: .18em; }
+.rank-promotion-close {
+  min-width: 170px;
+  padding: 12px 22px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(100deg, #8066b8, #b58c45);
+  color: white;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 5px 15px #66518b45;
+}
+.rank-promotion-close:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.rank-promotion-overlay.is-leaving { animation: rank-overlay-out .2s ease-in both; }
+.rank-promotion-overlay.is-leaving .rank-promotion-card { animation: rank-card-out .2s ease-in both; }
+@keyframes rank-overlay-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes rank-overlay-out { to { opacity: 0; } }
+@keyframes rank-card-pop { 0% { opacity: 0; transform: translateY(24px) scale(.72); } 70% { transform: translateY(-5px) scale(1.035); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes rank-card-out { to { opacity: 0; transform: translateY(12px) scale(.96); } }
+@keyframes rank-rays-spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+@keyframes rank-emblem-glow { from { box-shadow: 0 8px 22px #8b6a2830, 0 0 0 0 color-mix(in srgb, var(--promotion-accent) 35%, transparent); } to { box-shadow: 0 8px 30px #8b6a2848, 0 0 0 10px transparent; } }
+@media (prefers-reduced-motion: reduce) {
+  .rank-promotion-overlay, .rank-promotion-card, .rank-promotion-rays, .rank-promotion-emblem { animation: none !important; }
+}
+
+
+/* Achievement unlock celebration and next milestone motivation */
+.achievement-unlock-overlay { background: rgba(24, 16, 42, .82); }
+.achievement-unlock-card { --promotion-accent: #d6a7f3; background: linear-gradient(155deg, #fffaff 0%, #f6eaff 55%, #e7e9ff 100%); }
+.achievement-unlock-card .rank-promotion-kicker { color: #8752a8; letter-spacing: .12em; }
+.achievement-unlock-emblem { background: radial-gradient(circle at 35% 25%, #fff, #f1d7ff 48%, #c7a0e8); color: #68418a; border-color: #fff; box-shadow: 0 8px 28px #8853a638, inset 0 0 0 1px #bd8bd9; }
+.achievement-unlock-description { margin: 9px 0 22px; color: #71677c; font-size: 13px; line-height: 1.6; }
+.achievement-unlock-card .rank-promotion-close { background: linear-gradient(100deg, #8056ad, #bd83c9); }
+.next-achievement { display: flex; align-items: center; gap: 12px; margin: 0 0 14px; padding: 13px 15px; border: 1px solid #e7d8f2; border-radius: 14px; background: linear-gradient(100deg, #fbf7ff, #fffdf6); }
+.next-achievement-icon { display: grid; place-items: center; flex: 0 0 40px; height: 40px; border-radius: 12px; background: #f0e4fa; font-size: 22px; }
+.next-achievement-copy { display: flex; flex: 1; flex-direction: column; gap: 4px; min-width: 0; }
+.next-achievement-copy strong { color: #4c3b5e; font-size: 12px; }
+.next-achievement-copy small { color: #80758b; font-size: 10px; }
+.next-achievement-track { height: 7px; overflow: hidden; border-radius: 99px; background: #e9e2ef; }
+.next-achievement-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #9c72c1, #e1b96c); transition: width .35s ease; }
+.next-achievement-percent { color: #8c65a8; font-size: 12px; font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) { .next-achievement-track span { transition: none; } }
